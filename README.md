@@ -1,9 +1,8 @@
-[README.md](https://github.com/user-attachments/files/26532337/README.md)
 # Eyebit Tracker v1.3 — Orion Artemis II + Satélites
 
 Programa de seguimiento de la nave Orion (misión Artemis II de NASA) y satélites en órbita baja, con interfaz gráfica en tiempo real.
 
-**Autor:** EA5EMA ·( Ronda ) -> España
+**Autor:** EA5EMA · Valencia, España
 
 ## Instalación
 
@@ -12,7 +11,10 @@ Se necesita Python 3.8 o superior y las siguientes librerías:
 pip install ephem requests
 
 Para arrancar:
+
+```bash
 python3 seguimiento_orion_montura.py
+```
 
 ## Primer paso: configurar tu posición
 
@@ -24,9 +26,9 @@ Al abrir el programa, dentro de configuracion , en el panel derecho hay una secc
 - **Lugar** — nombre libre (ej: "Residencia", "Colegio"). Este nombre aparece en el mapamundi cuando pasas el ratón por encima de tu posición. Si lo dejas vacío aparece el locator Maidenhead.
 - **Locator** — cuadrícula Maidenhead. Puedes escribirlo aquí y pulsar el botón para que calcule latitud/longitud automáticamente, o al revés.
 
-Pulsa * "Guardar" * para que se guarde la configuración.
+Pulsa **"Guardar"** para que se guarde la configuración.
 
-También puedes elegir si quieres que las horas se muestren en * UTC * o en *hora local*.
+También puedes elegir si quieres que las horas se muestren en **UTC** o en **hora local**.
 
 ## La carta polar
 
@@ -117,6 +119,6 @@ Se pueden añadir o quitar satélites editando este fichero.
 
 ## Frecuencias de Artemis II (para radioaficionados)
 
-- Downlink S-band: 2210.5 MHz, 2287.5 MHz, 2290.8 MHz
+- Downlink S-band: 2216.5 MHz, 2287.5 MHz, 2290.8 MHz
 - La voz y telemetría van cifradas — no se puede decodificar
 - Lo que sí se puede hacer: ver la señal en waterfall y medir Doppler

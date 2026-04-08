@@ -121,6 +121,6 @@ Add or remove satellites by editing this file.
 
 ## Artemis II frequencies (for radio amateurs)
 
-- S-band downlink: 2210.5 MHz, 2287.5 MHz, 2290.8 MHz
+- S-band downlink: 2216.5 MHz, 2287.5 MHz, 2290.8 MHz
 - Voice and telemetry are encrypted — cannot be decoded
 - What you can do: see the carrier on a waterfall display and measure Doppler shift
