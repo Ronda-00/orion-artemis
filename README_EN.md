@@ -1,4 +1,4 @@
-# Eyebit Tracker v1.3 — Orion Artemis II + Satellites
+# Eyebit Tracker v1.4 — Orion Artemis II + Satellites
 
 Real-time tracking program for the Orion spacecraft (NASA Artemis II mission) and low-Earth orbit satellites, with graphical interface.
 
