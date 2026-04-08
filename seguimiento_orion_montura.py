@@ -66,7 +66,7 @@ except ImportError:
 # =============================================================
 
 APP_NAME      = "Eyebit Tracker"
-APP_VERSION   = "1.3"
+APP_VERSION   = "1.4"
 CONFIG_FILE   = Path.home() / ".satelite_tracker.json"
 TLE_FILE      = Path("mis_satelites.tle")
 DEG           = 180.0 / math.pi
@@ -1963,30 +1963,56 @@ class App:
             except Exception:
                 moon_rise = moon_set = None
 
-            # Generar datos SOLO de rise a set — un pase, una línea
+            # Generar datos de rise a set — con punto horizonte al inicio y final
             sun_points = []
             if sun_rise and sun_set:
-                _s0 = sun_rise - timedelta(minutes=5)
-                _s1 = sun_set + timedelta(minutes=5)
+                # Punto exacto del horizonte al inicio
+                obs.date = sun_rise.strftime("%Y/%m/%d %H:%M:%S")
+                sun_obj.compute(obs)
+                sun_points.append((float(sun_obj.az)*DEG, 0.0,
+                                   sun_rise.strftime("%Y-%b-%d %H:%M")))
+                # Datos cada 5 min
+                _s0 = sun_rise + timedelta(minutes=5)
+                _s1 = sun_set - timedelta(minutes=5)
                 _sn = int((_s1 - _s0).total_seconds() / 300) + 1
-                for i in range(_sn):
+                for i in range(max(0, _sn)):
                     t = _s0 + timedelta(minutes=i * 5)
                     obs.date = t.strftime("%Y/%m/%d %H:%M:%S")
                     sun_obj.compute(obs)
-                    sun_points.append((float(sun_obj.az)*DEG, float(sun_obj.alt)*DEG,
-                                       t.strftime("%Y-%b-%d %H:%M")))
+                    el = float(sun_obj.alt) * DEG
+                    if el > 0:
+                        sun_points.append((float(sun_obj.az)*DEG, el,
+                                           t.strftime("%Y-%b-%d %H:%M")))
+                # Punto exacto del horizonte al final
+                obs.date = sun_set.strftime("%Y/%m/%d %H:%M:%S")
+                sun_obj.compute(obs)
+                sun_points.append((float(sun_obj.az)*DEG, 0.0,
+                                   sun_set.strftime("%Y-%b-%d %H:%M")))
 
             moon_points = []
             if moon_rise and moon_set:
-                _m0 = moon_rise - timedelta(minutes=5)
-                _m1 = moon_set + timedelta(minutes=5)
+                # Punto exacto del horizonte al inicio
+                obs.date = moon_rise.strftime("%Y/%m/%d %H:%M:%S")
+                moon_obj.compute(obs)
+                moon_points.append((float(moon_obj.az)*DEG, 0.0,
+                                    moon_rise.strftime("%Y-%b-%d %H:%M")))
+                # Datos cada 5 min
+                _m0 = moon_rise + timedelta(minutes=5)
+                _m1 = moon_set - timedelta(minutes=5)
                 _mn = int((_m1 - _m0).total_seconds() / 300) + 1
-                for i in range(_mn):
+                for i in range(max(0, _mn)):
                     t = _m0 + timedelta(minutes=i * 5)
                     obs.date = t.strftime("%Y/%m/%d %H:%M:%S")
                     moon_obj.compute(obs)
-                    moon_points.append((float(moon_obj.az)*DEG, float(moon_obj.alt)*DEG,
-                                        t.strftime("%Y-%b-%d %H:%M")))
+                    el = float(moon_obj.alt) * DEG
+                    if el > 0:
+                        moon_points.append((float(moon_obj.az)*DEG, el,
+                                            t.strftime("%Y-%b-%d %H:%M")))
+                # Punto exacto del horizonte al final
+                obs.date = moon_set.strftime("%Y/%m/%d %H:%M:%S")
+                moon_obj.compute(obs)
+                moon_points.append((float(moon_obj.az)*DEG, 0.0,
+                                    moon_set.strftime("%Y-%b-%d %H:%M")))
 
             self.sun_track = sun_points
             self._sun_rise_utc = sun_rise
@@ -2026,7 +2052,7 @@ class App:
             )
             req = urllib.request.Request(
                 HORIZONS_URL, data=body.encode(),
-                headers={'User-Agent': 'EyebitTracker/1.3'})
+                headers={'User-Agent': 'EyebitTracker/1.4'})
             with urllib.request.urlopen(req, timeout=15) as r:
                 data = json.loads(r.read().decode())
             result = data.get("result", "")
@@ -2843,7 +2869,7 @@ class App:
                     return screen_pts, False
             except Exception:
                 return screen_pts, False
-        # ── Trayectoria segmentada (corta en huecos el<=0) ──
+        # ── Trayectoria segmentada (corta en huecos el<0) ──
         segments = []
         cur_seg = []
         screen = []
@@ -2851,7 +2877,7 @@ class App:
         for item in track:
             az, el = item[0], item[1]
             ts = item[2] if len(item) > 2 else ""
-            if el > 0:
+            if el >= 0:
                 px, py = self._az_el_to_xy(az, el, cx, cy, r)
                 cur_seg += [px, py]
                 screen.append((px, py))
@@ -3363,7 +3389,7 @@ class App:
             return
 
         # Parsear todos los puntos
-        # Formato: " 2026-Apr-05 03:39  t  181.38  22.78"
+        # Formato: " 2026-Apr-05 03:39  t  181.48  22.78"
         lines = result.split("\n")
         in_data = False
         points = []  # [(az, el, time_str)]
@@ -3432,11 +3458,29 @@ class App:
                     max_el = points[i][1]
                     max_el_idx = i
 
-        # Track: solo el pase seleccionado (de rise a set)
+        # Track: pase seleccionado, empezando y terminando en el horizonte (el=0)
         track = []
         if aos_idx is not None:
-            for i in range(max(0, aos_idx - 1), min(len(points), los_idx + 2)):
+            # Interpolar rise real (donde el cruza 0) entre último el<0 y primero el>0
+            if aos_idx > 0:
+                _a = points[aos_idx - 1]  # último el<0
+                _b = points[aos_idx]      # primero el>0
+                _frac = abs(_a[1]) / (abs(_a[1]) + _b[1]) if (abs(_a[1]) + _b[1]) > 0 else 0.5
+                _rise_az_interp = _a[0] + _frac * (_b[0] - _a[0])
+            else:
+                _rise_az_interp = points[aos_idx][0]
+            track.append((_rise_az_interp, 0.0, points[aos_idx][2]))
+            for i in range(aos_idx, los_idx + 1):
                 track.append(points[i])
+            # Interpolar set real entre último el>0 y primero el<0
+            if los_idx + 1 < len(points):
+                _c = points[los_idx]      # último el>0
+                _d = points[los_idx + 1]  # primero el<0
+                _frac2 = _c[1] / (_c[1] + abs(_d[1])) if (_c[1] + abs(_d[1])) > 0 else 0.5
+                _set_az_interp = _c[0] + _frac2 * (_d[0] - _c[0])
+            else:
+                _set_az_interp = points[los_idx][0]
+            track.append((_set_az_interp, 0.0, points[los_idx][2]))
 
         if aos_idx is None:
             self.root.after(0, lambda: self.log(
@@ -3444,9 +3488,9 @@ class App:
             self.root.after(0, _reenable_btn)
             return
 
-        # Crear pase — usar tiempos REALES de los datos de Horizons
-        az_rise = points[aos_idx][0]
-        az_set = points[los_idx][0]
+        # Crear pase — usar tiempos REALES y azimuts INTERPOLADOS
+        az_rise = _rise_az_interp
+        az_set = _set_az_interp
         time_rise = points[aos_idx][2]  # "2026-Apr-05 23:39"
         time_set = points[los_idx][2]
         time_max = points[max_el_idx][2]
